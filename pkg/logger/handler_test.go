@@ -42,6 +42,7 @@ func TestLogger(t *testing.T) {
 	responseChan := make(chan string)
 	// Start a local HTTP server
 	logSvc := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rw.Header().Set("Content-Type", "application/json")
 		b, err := ioutil.ReadAll(req.Body)
 		g.Expect(err).To(gomega.BeNil())
 		println(string(b))
@@ -55,6 +56,7 @@ func TestLogger(t *testing.T) {
 
 	// Start a local HTTP server
 	predictor := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rw.Header().Set("Content-Type", "application/json")
 		b, err := ioutil.ReadAll(req.Body)
 		g.Expect(err).To(gomega.BeNil())
 		g.Expect(b).To(gomega.Or(gomega.Equal(predictorRequest), gomega.Equal(predictorResponse)))
@@ -95,14 +97,18 @@ func TestBadResponse(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	predictorRequest := []byte(`{"instances":[[0,0,0]]}`)
-	predictorResponse := "BadRequest\n"
+	predictorResponse := []byte(`{"instances":[[4,5,6]]}`)
 
 	// Start a local HTTP server
 	predictor := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rw.Header().Set("Content-Type", "application/json")
 		b, err := ioutil.ReadAll(req.Body)
 		g.Expect(err).To(gomega.BeNil())
 		g.Expect(b).To(gomega.Or(gomega.Equal(predictorRequest), gomega.Equal(predictorResponse)))
-		http.Error(rw, "BadRequest", http.StatusBadRequest)
+		//http.Error(rw, "BadRequest", http.StatusBadRequest)
+		rw.WriteHeader(http.StatusBadRequest)
+		_, err = rw.Write(predictorResponse)
+		g.Expect(err).To(gomega.BeNil())
 	}))
 	// Close the server when test finishes
 	defer predictor.Close()
@@ -125,5 +131,5 @@ func TestBadResponse(t *testing.T) {
 
 	oh.ServeHTTP(w, r)
 	g.Expect(w.Code).To(gomega.Equal(400))
-	g.Expect(w.Body.String()).To(gomega.Equal(predictorResponse))
+	g.Expect(w.Body.String()).To(gomega.Equal(string(predictorResponse)))
 }
