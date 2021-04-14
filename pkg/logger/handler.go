@@ -105,8 +105,9 @@ func (eh *LoggerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rr := httptest.NewRecorder()
 	eh.next.ServeHTTP(rr, r)
 	responseBody := rr.Body.Bytes()
+	contentType := rr.Header().Get("Content-Type")
 	// log response if OK
-	if rr.Code == http.StatusOK {
+	if contentType == "application/json" {
 		if eh.logMode == v1beta1.LogAll || eh.logMode == v1beta1.LogResponse {
 			if err := QueueLogRequest(LogRequest{
 				Url:              eh.logUrl,
@@ -125,7 +126,6 @@ func (eh *LoggerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else {
 		eh.log.Info("Failed to proxy request", "status code", rr.Code)
 	}
-	contentType := rr.Header().Get("Content-Type")
 	if contentType != "" {
 		w.Header().Set("Content-Type", contentType)
 	}
